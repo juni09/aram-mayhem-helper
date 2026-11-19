@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>증바람 도우미</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="style.css">
+<style>
+/* 웹 버전 보정: 한 가지 어두운 화면으로 고정, 양옆 여백, 화면 높이 */
+:root { color-scheme: dark; }
+html, body { height: 100%; }
+header, .tabs, .settings, main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.tabs { padding-left: 0; padding-right: 0; }
+.vid { text-decoration: underline; }
+.intro { background: var(--panel2); border: 1px solid var(--accent); border-radius: 8px; padding: 9px 11px; margin-bottom: 10px; font-size: 12.5px; display: grid; gap: 3px; }
+.intro b { color: var(--accent); }
+.intro button { justify-self: start; margin-top: 4px; color: var(--accent); text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header id="top">
+  <button id="champBtn" class="champ-btn" title="챔피언 바꾸기">
+    <img id="champIcon" alt="">
+    <span class="champ-text">
+      <span id="champName">챔피언 선택</span>
+      <span id="champSub" class="sub"></span>
+    </span>
+  </button>
+  <div id="variants" class="variants"></div>
+  <button id="settingsBtn" class="icon-btn" title="설정">⚙</button>
+</header>
+
+<div id="settings" class="settings" hidden>
+  <label class="native-only">창 투명도 <input id="opacity" type="range" min="40" max="100" value="100"></label>
+  <label><input id="liveToggle" type="checkbox" checked> 게임 중 내 챔피언 자동 인식</label>
+  <label class="native-only"><input id="scanToggle" type="checkbox" checked> 증강 화면 자동 인식 (화면 기록 권한 필요)</label>
+  <p id="scanInfo" class="sub native-only" hidden></p>
+  <label class="native-only"><input id="shareToggle" type="checkbox"> 아이패드·휴대폰에서 열기</label>
+  <p id="shareInfo" class="sub native-only" hidden></p>
+  <button id="resetGame" class="ghost">새 게임 (내 증강 비우기)</button>
+  <p class="sub native-only">창 보이기/숨기기: Control + Option + A<br>게임 화면 모드는 "테두리 없음"이어야 창이 게임 위에 보입니다.</p>
+  <p id="metaLine" class="sub"></p>
+</div>
+
+<nav class="tabs">
+  <button data-tab="pick" class="on">추천</button>
+  <button data-tab="rank">전체 순위</button>
+  <button data-tab="notes">강의 노트</button>
+</nav>
+
+<main>
+  <section id="tab-pick">
+<div id="intro" class="block intro" hidden>
+  <b>처음이신가요? 이렇게 쓰면 됩니다</b>
+  <span>1. 왼쪽 위를 눌러 내 챔피언을 고릅니다.</span>
+  <span>2. 게임에 증강 선택 화면이 뜨면, 아래 목록에서 나온 증강을 누릅니다. (실버·골드·프리즘 버튼으로 좁히면 빠릅니다)</span>
+  <span>3. 위쪽에 무엇을 집을지, 새로고침할지가 나옵니다. 집은 카드의 「이걸 뽑음」을 누르면 살 아이템이 그에 맞게 바뀝니다.</span>
+  <span class="sub">참고용 의견입니다. 라이엇이 허가한 프로그램이 아니며, 추천은 유튜버 두두두리T 강의·op.gg 빌드·공략 글을 바탕으로 합니다.</span>
+  <button id="introClose">알겠어요</button>
+</div>
+
+    <div class="block" id="selectBlock" hidden>
+      <h2>픽창 추천 <span id="selectHead" class="sub"></span></h2>
+      <div id="select"></div>
+    </div>
+    <div class="block" id="planBlock" hidden>
+      <div id="plan"></div>
+    </div>
+    <div class="block" id="offerBlock">
+      <h2>이번에 나온 증강
+        <span class="rerolls">새로고침 <button id="rrMinus" class="mini">−</button><b id="rrCount">2</b><button id="rrPlus" class="mini">＋</button></span>
+        <button id="clearOffered" class="link" hidden>비우기</button></h2>
+      <div id="results"></div>
+    </div>
+    <div class="block" id="buildBlock" hidden>
+      <h2>다음에 살 아이템 <span id="buildHead" class="sub"></span></h2>
+      <div id="build"></div>
+    </div>
+    <div class="block" id="ownedBlock">
+      <h2>내 증강 <span id="liveInfo" class="sub"></span></h2>
+      <div id="owned" class="chips"></div>
+    </div>
+    <div class="block" id="sitBlock">
+      <h2>판 분석 <span id="sitHead" class="sub"></span></h2>
+      <div id="sit"></div>
+    </div>
+    <div class="block" id="pickerBlock">
+      <div class="picker-head">
+        <div class="seg" id="targetSeg">
+          <button data-target="offered" class="on">선택지에 넣기</button>
+          <button data-target="owned">가진 증강에 넣기</button>
+        </div>
+      </div>
+      <div class="picker-head">
+        <div class="seg" id="raritySeg">
+          <button data-r="silver" class="r-silver">실버</button>
+          <button data-r="gold" class="r-gold">골드</button>
+          <button data-r="prismatic" class="r-prismatic">프리즘</button>
+          <button data-r="all" class="on">전체</button>
+        </div>
+        <input id="search" type="search" placeholder="이름·초성 검색 (예: ㅂㅅㄱㅌ)" autocomplete="off">
+      </div>
+      <div id="grid" class="grid"></div>
+    </div>
+  </section>
+
+  <section id="tab-rank" hidden>
+    <div class="picker-head">
+      <div class="seg" id="rankRaritySeg">
+        <button data-r="silver" class="r-silver">실버</button>
+        <button data-r="gold" class="r-gold">골드</button>
+        <button data-r="prismatic" class="r-prismatic">프리즘</button>
+        <button data-r="all" class="on">전체</button>
+      </div>
+    </div>
+    <div id="rankList"></div>
+  </section>
+
+  <section id="tab-notes" hidden>
+    <div id="sitNotes"></div>
+    <input id="noteSearch" type="search" placeholder="노트 검색" autocomplete="off">
+    <div id="noteList"></div>
+  </section>
+</main>
+
+<div id="champModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <input id="champSearch" type="search" placeholder="챔피언 이름·초성" autocomplete="off">
+      <button id="champClose" class="icon-btn">✕</button>
+    </div>
+    <div id="champGrid" class="grid champ-grid"></div>
+  </div>
+</div>
+
+<script src="data/sprites.js"></script>
+<script src="data/meta.js"></script>
+<script src="data/augments.js"></script>
+<script src="data/champions.js"></script>
+<script src="data/items.js"></script>
+<script src="data/itemdb.js"></script>
+<script src="data/headliners.js"></script>
+<script src="data/knowledge.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+
+<script>
+// 첫 방문 안내 (한 번 닫으면 다시 안 뜬다)
+(function () {
+  var box = document.getElementById('intro'), seen = false;
+  try { seen = localStorage.getItem('augIntroSeen') === '1'; } catch (e) {}
+  box.hidden = seen;
+  document.getElementById('introClose').onclick = function () { box.hidden = true; try { localStorage.setItem('augIntroSeen', '1'); } catch (e) {} };
+  // 강의 링크는 새 탭에서 연다
+  document.addEventListener('click', function (e) { var a = e.target.closest && e.target.closest('a.vid'); if (a) { a.target = '_blank'; a.rel = 'noopener'; } }, true);
+})();
+</script>
+</body>
+</html>
